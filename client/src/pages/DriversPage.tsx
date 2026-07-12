@@ -72,7 +72,12 @@ export function DriversPage() {
       alert('Driver registered successfully!');
     },
     onError: (err: any) => {
-      alert(`Registration failed: ${err.response?.data?.error?.message || err.message}`);
+      const msg = err.response?.data?.error?.message || err.message;
+      if (err.response?.status === 409) {
+        form.setError('license_number', { type: 'manual', message: msg });
+      } else {
+        alert(`Registration failed: ${msg}`);
+      }
     },
   });
 
@@ -86,7 +91,12 @@ export function DriversPage() {
       alert('Driver records updated successfully!');
     },
     onError: (err: any) => {
-      alert(`Update failed: ${err.response?.data?.error?.message || err.message}`);
+      const msg = err.response?.data?.error?.message || err.message;
+      if (err.response?.status === 409) {
+        form.setError('license_number', { type: 'manual', message: msg });
+      } else {
+        alert(`Update failed: ${msg}`);
+      }
     },
   });
 

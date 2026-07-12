@@ -370,4 +370,107 @@ describe('Trip Management and Business Rules', () => {
     expect(res.statusCode).toBe(409);
     expect(res.body.success).toBe(false);
   });
+
+  // Concurrency & state checks
+  test('11. Cannot create a trip if vehicle is already ON_TRIP', async () => {
+    testVehicle.status = 'ON_TRIP';
+    await testVehicle.save();
+
+    const payload = getValidTripPayload();
+    const res = await request(app).post('/api/trips').send(payload);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('12. Cannot create a trip if driver is already On Trip', async () => {
+    testDriver.status = 'On Trip';
+    await testDriver.save();
+
+    const payload = getValidTripPayload();
+    const res = await request(app).post('/api/trips').send(payload);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('13. Cannot dispatch a trip if driver is already On Trip', async () => {
+    const trip = await Trip.create({
+      source: 'A',
+      destination: 'B',
+      vehicle: testVehicle._id,
+      driver: testDriver._id,
+      cargo_weight: 100,
+      planned_distance: 50,
+      status: 'Draft',
+    });
+
+    testDriver.status = 'On Trip';
+    await testDriver.save();
+
+    const res = await request(app).patch(`/api/trips/${trip._id}/dispatch`);
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('14. Cannot complete a trip with negative actual_distance, fuel_consumed, or final_odometer', async () => {
+    const trip = await Trip.create({
+      source: 'A',
+      destination: 'B',
+      vehicle: testVehicle._id,
+      driver: testDriver._id,
+      cargo_weight: 100,
+      planned_distance: 50,
+      status: 'Dispatched',
+    });
+
+    // negative distance
+    let res = await request(app)
+      .patch(`/api/trips/${trip._id}/complete`)
+      .send({ actual_distance: -10, fuel_consumed: 10, final_odometer: 1050 });
+    expect(res.statusCode).toBe(400);
+
+    // negative fuel
+    res = await request(app)
+      .patch(`/api/trips/${trip._id}/complete`)
+      .send({ actual_distance: 50, fuel_consumed: -5, final_odometer: 1050 });
+    expect(res.statusCode).toBe(400);
+
+    // negative odometer
+    res = await request(app)
+      .patch(`/api/trips/${trip._id}/complete`)
+      .send({ actual_distance: 50, fuel_consumed: 10, final_odometer: -10 });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('15. Cannot cancel a completed trip', async () => {
+    const trip = await Trip.create({
+      source: 'A',
+      destination: 'B',
+      vehicle: testVehicle._id,
+      driver: testDriver._id,
+      cargo_weight: 100,
+      planned_distance: 50,
+      status: 'Completed',
+    });
+
+    const res = await request(app).patch(`/api/trips/${trip._id}/cancel`);
+    expect(res.statusCode).toBe(409);
+  });
+
+  test('16. Cannot cancel an already cancelled trip', async () => {
+    const trip = await Trip.create({
+      source: 'A',
+      destination: 'B',
+      vehicle: testVehicle._id,
+      driver: testDriver._id,
+      cargo_weight: 100,
+      planned_distance: 50,
+      status: 'Cancelled',
+    });
+
+    const res = await request(app).patch(`/api/trips/${trip._id}/cancel`);
+    expect(res.statusCode).toBe(409);
+  });
 });
