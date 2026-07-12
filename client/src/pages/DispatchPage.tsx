@@ -97,7 +97,19 @@ export function DispatchPage() {
       alert('Trip draft created successfully!');
     },
     onError: (err: any) => {
-      alert(`Trip creation failed: ${err.response?.data?.error?.message || err.message}`);
+      const msg = err.response?.data?.error?.message || err.message;
+      const msgLower = msg.toLowerCase();
+      if (msgLower.includes('vehicle')) {
+        createForm.setError('vehicle', { type: 'manual', message: msg });
+      } else if (msgLower.includes('driver')) {
+        createForm.setError('driver', { type: 'manual', message: msg });
+      } else if (msgLower.includes('cargo')) {
+        createForm.setError('cargo_weight', { type: 'manual', message: msg });
+      } else if (msgLower.includes('distance')) {
+        createForm.setError('planned_distance', { type: 'manual', message: msg });
+      } else {
+        alert(`Trip creation failed: ${msg}`);
+      }
     },
   });
 
@@ -125,7 +137,12 @@ export function DispatchPage() {
       alert('Trip completed successfully!');
     },
     onError: (err: any) => {
-      alert(`Trip completion failed: ${err.response?.data?.error?.message || err.message}`);
+      const msg = err.response?.data?.error?.message || err.message;
+      if (msg.toLowerCase().includes('odometer')) {
+        completeForm.setError('final_odometer', { type: 'manual', message: msg });
+      } else {
+        alert(`Trip completion failed: ${msg}`);
+      }
     },
   });
 
