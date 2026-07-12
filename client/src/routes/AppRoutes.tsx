@@ -3,6 +3,8 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { AppShell } from '@/layouts/AppShell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { SignupPage } from '@/pages/SignupPage'
+import { LandingPage } from '@/pages/LandingPage'
 import { VehiclesPage } from '@/pages/VehiclesPage'
 import { DriversPage } from '@/pages/DriversPage'
 import { DispatchPage } from '@/pages/DispatchPage'
@@ -14,13 +16,15 @@ import { ProtectedRoute } from '@/routes/ProtectedRoute'
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/drivers" element={<DriversPage />} />
@@ -31,7 +35,7 @@ export function AppRoutes() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

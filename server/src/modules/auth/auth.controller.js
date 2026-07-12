@@ -70,8 +70,38 @@ const getMe = async (req, res, next) => {
   });
 };
 
+const register = async (req, res, next) => {
+  try {
+    const { name, email, role, password } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'A user with this email address already exists',
+        },
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      role,
+      password,
+    });
+
+    createSendToken(user, 201, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   logout,
   getMe,
+  register,
 };

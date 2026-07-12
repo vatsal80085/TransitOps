@@ -129,4 +129,72 @@ describe('User Model & Auth workflows', () => {
     expect(res.body.success).toBe(true);
     expect(res.headers['set-cookie'][0]).toContain('loggedout');
   });
+
+  test('Should register a new user successfully, set cookie, and hash password', async () => {
+    const newUser = {
+      name: 'New Registered User',
+      email: 'newregistered@transitops.com',
+      role: 'DISPATCHER',
+      password: 'Password123!',
+    };
+
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send(newUser);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.email).toBe(newUser.email);
+    expect(res.body.data.user.name).toBe(newUser.name);
+    expect(res.body.data.user.role).toBe(newUser.role);
+    expect(res.body.data.token).toBeDefined();
+
+    const cookieHeader = res.headers['set-cookie'][0];
+    expect(cookieHeader).toContain('token=');
+
+    // Confirm user is in database and password is hashed
+    const userInDb = await User.findOne({ email: newUser.email }).select('+password');
+    expect(userInDb).toBeDefined();
+    expect(userInDb.password).not.toBe(newUser.password);
+  });
+
+  test('Should fail registration if email already exists', async () => {
+    await User.create(testUser);
+
+    const duplicateUser = {
+      name: 'Duplicate Manager',
+      email: testUser.email,
+      role: 'FLEET_MANAGER',
+      password: 'Password123!',
+    };
+
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send(duplicateUser);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toContain('already exists');
+  });
+
+  test('Should fail registration with validation errors for invalid input', async () => {
+    const invalidUser = {
+      name: 'A', // too short
+      email: 'not-an-email',
+      role: 'INVALID_ROLE',
+      password: 'short',
+    };
+
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send(invalidUser);
+
+    expect(res.statusCode).toBe(422);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details.name).toBeDefined();
+    expect(res.body.error.details.email).toBeDefined();
+    expect(res.body.error.details.role).toBeDefined();
+    expect(res.body.error.details.password).toBeDefined();
+  });
 });

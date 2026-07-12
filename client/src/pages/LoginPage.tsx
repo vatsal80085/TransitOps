@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -18,8 +18,14 @@ type LoginFormValues = z.infer<typeof loginSchema>
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
   const [apiError, setApiError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
 
   const {
     register,
@@ -73,10 +79,30 @@ export function LoginPage() {
           </div>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full font-bold" disabled={isSubmitting}>
           {isSubmitting ? 'Signing in...' : 'Login'}
         </Button>
       </form>
+
+      <div className="text-center space-y-2 pt-2 border-t border-border/60">
+        <p className="text-caption text-muted-foreground">
+          New to TransitOps?{' '}
+          <span
+            onClick={() => navigate('/signup')}
+            className="text-primary hover:underline cursor-pointer font-semibold"
+          >
+            Create an Account
+          </span>
+        </p>
+        <p className="text-caption text-muted-foreground">
+          <span
+            onClick={() => navigate('/')}
+            className="hover:underline cursor-pointer text-muted-foreground/80 font-medium"
+          >
+            ← Back to Landing Page
+          </span>
+        </p>
+      </div>
     </div>
   )
 }
