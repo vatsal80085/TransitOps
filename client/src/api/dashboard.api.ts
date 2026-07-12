@@ -23,12 +23,22 @@ import axiosInstance from '@/lib/axios'
 
 const shouldUseMocks = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS !== 'false'
 
+export type DashboardFilters = {
+  vehicleType?: string
+  status?: string
+  region?: string
+}
+
 export type DashboardSummaryResponse = {
   summary: {
     activeVehicles: number
+    availableVehicles: number
     pendingDispatches: number
+    activeTrips: number
     maintenanceDue: number
     totalExpenses: number
+    driversOnDuty: number
+    fleetUtilization: number
   }
   dispatchTrend: Array<{ day: string; dispatches: number }>
   vehicleStatusBreakdown: Array<{ status: string; count: number }>
@@ -42,10 +52,14 @@ export type DashboardSummaryResponse = {
 
 const mockDashboardSummary: DashboardSummaryResponse = {
   summary: {
-    activeVehicles: 142,
+    activeVehicles: 102,
+    availableVehicles: 16,
     pendingDispatches: 18,
+    activeTrips: 12,
     maintenanceDue: 6,
     totalExpenses: 28400,
+    driversOnDuty: 45,
+    fleetUtilization: 86.4,
   },
   dispatchTrend: [
     { day: 'Mon', dispatches: 12 },
@@ -70,18 +84,18 @@ const mockDashboardSummary: DashboardSummaryResponse = {
   ],
 }
 
-export const getDashboardSummary = async (): Promise<DashboardSummaryResponse> => {
+export const getDashboardSummary = async (filters?: DashboardFilters): Promise<DashboardSummaryResponse> => {
   if (shouldUseMocks) {
     return mockDashboardSummary
   }
 
-  const response = await axiosInstance.get<DashboardSummaryResponse>('/dashboard/summary')
+  const response = await axiosInstance.get<DashboardSummaryResponse>('/dashboard/summary', { params: filters })
   return response.data
 }
 
-export function useDashboardSummary() {
+export function useDashboardSummary(filters?: DashboardFilters) {
   return useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: getDashboardSummary,
+    queryKey: ['dashboard-summary', filters],
+    queryFn: () => getDashboardSummary(filters),
   })
 }

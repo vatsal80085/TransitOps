@@ -3,8 +3,11 @@ import { RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DataTable } from '@/components/common/DataTable'
 import { useDashboardSummary } from '@/api/dashboard.api'
+import { useState } from 'react'
 
 const statusColorMap: Record<string, string> = {
   active: '#2563eb',
@@ -13,14 +16,24 @@ const statusColorMap: Record<string, string> = {
 }
 
 export function DashboardPage() {
-  const { data, isLoading, isError, error, refetch } = useDashboardSummary()
+  const [vehicleType, setVehicleType] = useState<string>('ALL')
+  const [status, setStatus] = useState<string>('ALL')
+  const [region, setRegion] = useState<string>('ALL')
+
+  const filters = {
+    vehicleType: vehicleType !== 'ALL' ? vehicleType : undefined,
+    status: status !== 'ALL' ? status : undefined,
+    region: region !== 'ALL' ? region : undefined,
+  }
+
+  const { data, isLoading, isError, error, refetch } = useDashboardSummary(filters)
   const hasValidSummary = Boolean(data?.summary && data.dispatchTrend && data.vehicleStatusBreakdown && data.recentActivity)
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+          {Array.from({ length: 8 }).map((_, index) => (
             <Card key={index}>
               <CardHeader>
                 <div className="h-4 w-24 animate-pulse rounded bg-muted" />
@@ -55,10 +68,14 @@ export function DashboardPage() {
   }
 
   const summaryCards = [
-    { label: 'Active Vehicles', value: data.summary.activeVehicles, trend: '↑ 4.2% vs last week' },
-    { label: 'Pending Dispatches', value: data.summary.pendingDispatches, trend: '3 high-priority' },
-    { label: 'Maintenance Due', value: data.summary.maintenanceDue, trend: '1 overdue' },
-    { label: 'Total Expenses (This Month)', value: `$${data.summary.totalExpenses.toLocaleString()}`, trend: 'On track' },
+    { label: 'Active Vehicles (On Trip)', value: data.summary.activeVehicles, trend: 'Currently driving' },
+    { label: 'Available Vehicles', value: data.summary.availableVehicles, trend: 'Ready for dispatch' },
+    { label: 'Pending Dispatches', value: data.summary.pendingDispatches, trend: 'Draft status' },
+    { label: 'Active Trips', value: data.summary.activeTrips, trend: 'Dispatched status' },
+    { label: 'Maintenance Due', value: data.summary.maintenanceDue, trend: 'Requires attention' },
+    { label: 'Drivers On Duty', value: data.summary.driversOnDuty, trend: 'Available / On Trip' },
+    { label: 'Fleet Utilization', value: `${data.summary.fleetUtilization}%`, trend: 'Active / Total Fleet' },
+    { label: 'Total Expenses', value: `$${data.summary.totalExpenses.toLocaleString()}`, trend: 'Combined operational costs' },
   ]
 
   const tableColumns = [
@@ -75,6 +92,57 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Filters Bar */}
+      <div className="grid gap-4 rounded-md border border-border bg-card p-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="vehicleType">Vehicle Type</Label>
+          <Select value={vehicleType} onValueChange={setVehicleType}>
+            <SelectTrigger id="vehicleType">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="Van">Van</SelectItem>
+              <SelectItem value="Truck">Truck</SelectItem>
+              <SelectItem value="Sedan">Sedan</SelectItem>
+              <SelectItem value="Bus">Bus</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="status">Vehicle Status</Label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger id="status">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="AVAILABLE">AVAILABLE</SelectItem>
+              <SelectItem value="ON_TRIP">ON_TRIP</SelectItem>
+              <SelectItem value="IN_SHOP">IN_SHOP</SelectItem>
+              <SelectItem value="RETIRED">RETIRED</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="region">Region</Label>
+          <Select value={region} onValueChange={setRegion}>
+            <SelectTrigger id="region">
+              <SelectValue placeholder="All Regions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Regions</SelectItem>
+              <SelectItem value="North">North</SelectItem>
+              <SelectItem value="South">South</SelectItem>
+              <SelectItem value="East">East</SelectItem>
+              <SelectItem value="West">West</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label}>

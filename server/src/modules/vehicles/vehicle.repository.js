@@ -1,4 +1,6 @@
 const Vehicle = require('./vehicle.model');
+const FuelLog = require('../fuel/fuel.model');
+const Maintenance = require('../maintenance/maintenance.model');
 
 class VehicleRepository {
   async create(vehicleData) {
@@ -6,7 +8,25 @@ class VehicleRepository {
   }
 
   async findById(id) {
-    return await Vehicle.findById(id);
+    const vehicle = await Vehicle.findById(id);
+    if (!vehicle) return null;
+
+    const vehicleObj = vehicle.toObject();
+
+    const fuelCostAgg = await FuelLog.aggregate([
+      { $match: { vehicleId: vehicle._id } },
+      { $group: { _id: null, total: { $sum: '$cost' } } },
+    ]);
+    vehicleObj.totalFuelCost = fuelCostAgg[0]?.total || 0;
+
+    const maintCostAgg = await Maintenance.aggregate([
+      { $match: { vehicleId: vehicle._id } },
+      { $group: { _id: null, total: { $sum: '$cost' } } },
+    ]);
+    vehicleObj.totalMaintenanceCost = maintCostAgg[0]?.total || 0;
+    vehicleObj.totalOperationalCost = vehicleObj.totalFuelCost + vehicleObj.totalMaintenanceCost;
+
+    return vehicleObj;
   }
 
   async findByRegistrationNumber(registrationNumber) {
@@ -58,8 +78,33 @@ class VehicleRepository {
       .skip(skip)
       .limit(limit);
 
+    const vehiclesWithCosts = [];
+    for (const vehicle of vehicles) {
+      const vehicleObj = vehicle.toObject();
+
+      // Aggregate fuel logs
+      const fuelCostAgg = await FuelLog.aggregate([
+        { $match: { vehicleId: vehicle._id } },
+        { $group: { _id: null, total: { $sum: '$cost' } } },
+      ]);
+      const totalFuelCost = fuelCostAgg[0]?.total || 0;
+
+      // Aggregate maintenance costs
+      const maintCostAgg = await Maintenance.aggregate([
+        { $match: { vehicleId: vehicle._id } },
+        { $group: { _id: null, total: { $sum: '$cost' } } },
+      ]);
+      const totalMaintenanceCost = maintCostAgg[0]?.total || 0;
+
+      vehicleObj.totalFuelCost = totalFuelCost;
+      vehicleObj.totalMaintenanceCost = totalMaintenanceCost;
+      vehicleObj.totalOperationalCost = totalFuelCost + totalMaintenanceCost;
+
+      vehiclesWithCosts.push(vehicleObj);
+    }
+
     return {
-      vehicles,
+      vehicles: vehiclesWithCosts,
       total,
       page,
       limit,

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts';
-import { RefreshCw, TrendingUp, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Download, Printer } from 'lucide-react';
 import { getVehicles } from '@/api/vehicles.api';
 import { getFleetUtilization, getFuelEfficiency, getOperationalCost, getVehicleROI } from '@/api/analytics.api';
 
@@ -77,12 +77,64 @@ export function AnalyticsPage() {
       ]
     : [];
 
-  const showLoading = isUtilLoading || isFuelLoading || isCostLoading || (selectedVehicleId && isRoiLoading);
-  const showError = isUtilError || isFuelError || isCostError || (selectedVehicleId && isRoiError);
+  const showLoading = !!(isUtilLoading || isFuelLoading || isCostLoading || (selectedVehicleId && isRoiLoading));
+  const showError = !!(isUtilError || isFuelError || isCostError || (selectedVehicleId && isRoiError));
+
+  const handleExportCSV = () => {
+    if (!vehicles.length) return;
+
+    const headers = [
+      'Registration Number',
+      'Name',
+      'Model',
+      'Type',
+      'Region',
+      'Status',
+      'Capacity (kg)',
+      'Odometer (km)',
+      'Acquisition Cost ($)',
+      'Fuel Cost ($)',
+      'Maintenance Cost ($)',
+      'Total Operational Cost ($)'
+    ];
+
+    const rows = vehicles.map(v => [
+      v.registrationNumber,
+      v.name,
+      v.model,
+      v.type,
+      v.region,
+      v.status,
+      v.maximumLoadCapacity,
+      v.odometer,
+      v.acquisitionCost,
+      v.totalFuelCost || 0,
+      v.totalMaintenanceCost || 0,
+      v.totalOperationalCost || 0
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transitops_fleet_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintPDF = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>
           <h2 className="text-xl font-bold tracking-tight">System Performance & ROI Metrics</h2>
           <p className="text-muted-foreground">Aggregated cost metrics, utilization, and vehicle efficiency calculations.</p>
@@ -100,7 +152,15 @@ export function AnalyticsPage() {
               </option>
             ))}
           </select>
-          <Button variant="outline" size="icon" onClick={handleRetryAll} disabled={showLoading}>
+          <Button variant="outline" className="font-bold gap-1 text-xs h-9" onClick={handleExportCSV} disabled={!vehicles.length}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" className="font-bold gap-1 text-xs h-9" onClick={handlePrintPDF}>
+            <Printer className="h-4 w-4" />
+            PDF/Print
+          </Button>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleRetryAll} disabled={showLoading}>
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -211,16 +271,16 @@ export function AnalyticsPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {costBreakdownData.map((entry, index) => (
+                      {costBreakdownData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                    <Tooltip formatter={(value: any) => `$${Number(value || 0).toLocaleString()}`} />
                   </PieChart>
                 </ResponsiveContainer>
               )}

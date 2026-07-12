@@ -7,19 +7,58 @@ const Expense = require('../models/Expense');
 
 const getDashboardSummary = async (req, res, next) => {
   try {
-    // 1. Calculate active vehicles, pending trips, active maintenance
-    const activeVehiclesCount = await Vehicle.countDocuments({ status: 'ON_TRIP' });
-    const pendingDispatchesCount = await Trip.countDocuments({ status: 'Draft' });
-    const maintenanceDueCount = await Maintenance.countDocuments({ status: 'ACTIVE' });
+    const { vehicleType, status, region } = req.query;
+
+    const vehicleQuery = {};
+    if (vehicleType) vehicleQuery.type = vehicleType;
+    if (status) vehicleQuery.status = status;
+    if (region) vehicleQuery.region = region;
+
+    const hasFilters = Object.keys(vehicleQuery).length > 0;
+    let vehicleIds = [];
+    if (hasFilters) {
+      const matchingVehicles = await Vehicle.find(vehicleQuery).select('_id');
+      vehicleIds = matchingVehicles.map((v) => v._id);
+    }
+
+    // 1. Calculate active vehicles, available vehicles, pending dispatches, active trips, drivers on duty
+    const activeVehiclesCount = await Vehicle.countDocuments({ ...vehicleQuery, status: 'ON_TRIP' });
+    const availableVehiclesCount = await Vehicle.countDocuments({ ...vehicleQuery, status: 'AVAILABLE' });
+    const totalVehiclesCount = await Vehicle.countDocuments(vehicleQuery);
+
+    const tripQuery = { status: 'Draft' };
+    if (hasFilters) tripQuery.vehicle = { $in: vehicleIds };
+    const pendingDispatchesCount = await Trip.countDocuments(tripQuery);
+
+    const activeTripQuery = { status: 'Dispatched' };
+    if (hasFilters) activeTripQuery.vehicle = { $in: vehicleIds };
+    const activeTripsCount = await Trip.countDocuments(activeTripQuery);
+
+    const maintenanceQuery = { status: 'ACTIVE' };
+    if (hasFilters) maintenanceQuery.vehicleId = { $in: vehicleIds };
+    const maintenanceDueCount = await Maintenance.countDocuments(maintenanceQuery);
+
+    const driverFilter = { status: { $in: ['Available', 'On Trip'] } };
+    if (region) driverFilter.region = region;
+    const driversOnDutyCount = await Driver.countDocuments(driverFilter);
+
+    const fleetUtilization = totalVehiclesCount > 0 ? ((activeVehiclesCount / totalVehiclesCount) * 100).toFixed(1) : 0;
 
     // 2. Calculate total expenses (expenses + maintenance cost + fuel log cost)
+    const expenseMatch = hasFilters ? { vehicleId: { $in: vehicleIds } } : {};
+    const maintenanceMatch = hasFilters ? { vehicleId: { $in: vehicleIds } } : {};
+    const fuelLogMatch = hasFilters ? { vehicleId: { $in: vehicleIds } } : {};
+
     const expenseAgg = await Expense.aggregate([
+      { $match: expenseMatch },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
     const maintenanceAgg = await Maintenance.aggregate([
+      { $match: maintenanceMatch },
       { $group: { _id: null, total: { $sum: '$cost' } } },
     ]);
     const fuelLogAgg = await FuelLog.aggregate([
+      { $match: fuelLogMatch },
       { $group: { _id: null, total: { $sum: '$cost' } } },
     ]);
 
@@ -32,11 +71,14 @@ const getDashboardSummary = async (req, res, next) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    const trendMatch = { createdAt: { $gte: sevenDaysAgo } };
+    if (hasFilters) {
+      trendMatch.vehicle = { $in: vehicleIds };
+    }
+
     const dispatchTrendAgg = await Trip.aggregate([
       {
-        $match: {
-          createdAt: { $gte: sevenDaysAgo },
-        },
+        $match: trendMatch,
       },
       {
         $group: {
@@ -68,6 +110,9 @@ const getDashboardSummary = async (req, res, next) => {
     // 4. Vehicle status breakdown
     const vehicleBreakdownAgg = await Vehicle.aggregate([
       {
+        $match: vehicleQuery,
+      },
+      {
         $group: {
           _id: '$status',
           count: { $sum: 1 },
@@ -87,18 +132,22 @@ const getDashboardSummary = async (req, res, next) => {
     ];
 
     // 5. Recent activity (fetch latest from trips, maintenance, and expenses, merge and sort)
-    const recentTrips = await Trip.find()
+    const recentTripQuery = hasFilters ? { vehicle: { $in: vehicleIds } } : {};
+    const recentMaintenanceQuery = hasFilters ? { vehicleId: { $in: vehicleIds } } : {};
+    const recentExpenseQuery = hasFilters ? { vehicleId: { $in: vehicleIds } } : {};
+
+    const recentTrips = await Trip.find(recentTripQuery)
       .sort({ createdAt: -1 })
       .limit(3)
       .populate('vehicle', 'registrationNumber')
       .populate('driver', 'name');
 
-    const recentMaintenance = await Maintenance.find()
+    const recentMaintenance = await Maintenance.find(recentMaintenanceQuery)
       .sort({ createdAt: -1 })
       .limit(3)
       .populate('vehicleId', 'registrationNumber');
 
-    const recentExpenses = await Expense.find()
+    const recentExpenses = await Expense.find(recentExpenseQuery)
       .sort({ date: -1 })
       .limit(3)
       .populate('vehicleId', 'registrationNumber');
@@ -143,9 +192,13 @@ const getDashboardSummary = async (req, res, next) => {
       data: {
         summary: {
           activeVehicles: activeVehiclesCount,
+          availableVehicles: availableVehiclesCount,
           pendingDispatches: pendingDispatchesCount,
+          activeTrips: activeTripsCount,
           maintenanceDue: maintenanceDueCount,
           totalExpenses: totalExpenseAmount,
+          driversOnDuty: driversOnDutyCount,
+          fleetUtilization: Number(fleetUtilization),
         },
         dispatchTrend,
         vehicleStatusBreakdown,

@@ -176,6 +176,11 @@ export function VehiclesPage() {
       render: (v: Vehicle) => `${v.maximumLoadCapacity} kg`,
     },
     { key: 'odometer', header: 'Odometer', render: (v: Vehicle) => `${v.odometer} km` },
+    {
+      key: 'totalOperationalCost',
+      header: 'Op. Cost',
+      render: (v: Vehicle) => `$${(v.totalOperationalCost || 0).toLocaleString()}`,
+    },
     { key: 'region', header: 'Region' },
     {
       key: 'status',

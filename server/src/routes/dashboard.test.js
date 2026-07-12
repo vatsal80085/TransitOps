@@ -89,4 +89,15 @@ describe('Dashboard and Expense APIs', () => {
     expect(res.body.data.vehicleStatusBreakdown).toBeDefined();
     expect(res.body.data.recentActivity).toBeDefined();
   });
+
+  test('Should support query filters on the dashboard summary endpoint', async () => {
+    const res = await request(app)
+      .get('/api/v1/dashboard/summary?vehicleType=Van&region=North&status=AVAILABLE')
+      .set('Cookie', managerCookie);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.summary.activeVehicles).toBe(0);
+    expect(res.body.data.summary.availableVehicles).toBeGreaterThanOrEqual(0);
+  });
 });

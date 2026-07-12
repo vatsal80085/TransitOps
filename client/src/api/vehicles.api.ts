@@ -13,6 +13,9 @@ export type Vehicle = {
   status: 'AVAILABLE' | 'ON_TRIP' | 'IN_SHOP' | 'RETIRED';
   createdAt: string;
   updatedAt: string;
+  totalFuelCost?: number;
+  totalMaintenanceCost?: number;
+  totalOperationalCost?: number;
 };
 
 export type QueryParams = {
