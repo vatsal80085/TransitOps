@@ -8,6 +8,7 @@ import { DriversPage } from '@/pages/DriversPage'
 import { DispatchPage } from '@/pages/DispatchPage'
 import { MaintenancePage } from '@/pages/MaintenancePage'
 import { ExpensesPage } from '@/pages/ExpensesPage'
+import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
 
 export function AppRoutes() {
@@ -26,6 +27,7 @@ export function AppRoutes() {
           <Route path="/dispatch" element={<DispatchPage />} />
           <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Route>
       </Route>
 

@@ -5,6 +5,7 @@ export const appNavItems = [
   { label: 'Dispatch', path: '/dispatch', icon: 'Send' },
   { label: 'Maintenance', path: '/maintenance', icon: 'Wrench' },
   { label: 'Expenses', path: '/expenses', icon: 'Wallet' },
+  { label: 'Analytics', path: '/analytics', icon: 'TrendingUp' },
 ]
 
 export const appMeta = {

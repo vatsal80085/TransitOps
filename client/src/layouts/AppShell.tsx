@@ -1,4 +1,4 @@
-import { Menu, LayoutDashboard, Truck, Users, Send, Wrench, Wallet, ChevronDown } from 'lucide-react'
+import { Menu, LayoutDashboard, Truck, Users, Send, Wrench, Wallet, ChevronDown, TrendingUp } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { appNavItems } from '@/config/app'
@@ -15,6 +15,7 @@ const iconMap = {
   Send,
   Wrench,
   Wallet,
+  TrendingUp,
 }
 
 export function AppShell() {
